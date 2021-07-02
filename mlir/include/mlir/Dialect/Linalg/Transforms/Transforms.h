@@ -1088,6 +1088,28 @@ struct ExtractSliceOfPadTensorSwapPattern
                                 PatternRewriter &rewriter) const override;
 };
 
+using OptimizeCopyFn =
+    std::function<LogicalResult(PatternRewriter &, PadTensorOp, Value)>;
+
+/// Rewrite a PadTensorOp into a sequence of InitTensorOp, FillOp and
+/// InsertSliceOp. For now, only constant padding values are supported.
+/// `OptimizeCopyFn` can be used to customize copying step optimization.
+struct GeneralizePadTensorOpPattern : public OpRewritePattern<PadTensorOp> {
+  GeneralizePadTensorOpPattern(MLIRContext *context,
+                               OptimizeCopyFn optimizeCopyFn = nullptr,
+                               PatternBenefit benefit = 1)
+      : OpRewritePattern<PadTensorOp>(context, benefit),
+        optimizeCopyFn(optimizeCopyFn) {}
+  LogicalResult matchAndRewrite(PadTensorOp padOp,
+                                PatternRewriter &rewriter) const override;
+
+protected:
+  OptimizeCopyFn optimizeCopyFn;
+  Value createFillOrGenerateOp(PatternRewriter &rewriter, PadTensorOp padOp,
+                               Value dest,
+                               const SmallVector<Value> &dynSizes) const;
+};
+
 } // namespace linalg
 } // namespace mlir
 
