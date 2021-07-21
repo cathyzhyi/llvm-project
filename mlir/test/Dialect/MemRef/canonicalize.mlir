@@ -511,3 +511,30 @@ func @fold_memref_reshape_dynamic(%arg0 : memref<?x?xf32>) -> memref<?x?xf32> {
 }
 // CHECK-LABEL: @fold_memref_reshape_dynamic
 //   CHECK-NOT:   linalg.{{.*}}_shape
+
+// -----
+
+// CHECK-LABEL:   func @collapse_after_memref_cast_no_fold(
+// CHECK-SAME:      %[[INPUT:.*]]: memref<?x512x1x1xf32>) -> memref<?x?xf32> {
+// CHECK:           %[[DYNAMIC:.*]] = memref.cast %[[INPUT]] :
+// CHECK-SAME:        memref<?x512x1x1xf32> to memref<?x?x?x?xf32>
+// CHECK:           %[[COLLAPSED:.*]] = memref.collapse_shape %[[DYNAMIC]]
+// CHECK-SMAE:        {{\[\[}}0], [1, 2, 3]] : memref<?x?x?x?xf32> into memref<?x?xf32>
+// CHECK:           return %[[COLLAPSED]] : memref<?x?xf32>
+func @collapse_after_memref_cast_no_fold(%arg0 : memref<?x512x1x1xf32>) -> memref<?x?xf32> {
+  %dynamic = memref.cast %arg0: memref<?x512x1x1xf32> to memref<?x?x?x?xf32>
+  %collapsed = memref.collapse_shape %dynamic [[0], [1, 2, 3]] : memref<?x?x?x?xf32> into memref<?x?xf32>
+  return %collapsed : memref<?x?xf32>
+}
+
+// CHECK-LABEL:   func @collapse_after_memref_cast_fold(
+// CHECK-SAME:      %[[INPUT:.*]]: memref<?x512x1x?xf32>) -> memref<?x?xf32> {
+// CHECK:           %[[COLLAPSED:.*]] = memref.collapse_shape %[[INPUT]]
+// CHECK_SAME:        {{\[\[}}0], [1, 2, 3]] : memref<?x512x1x?xf32> into memref<?x?xf32>
+// CHECK:           return %[[COLLAPSED]] : memref<?x?xf32>
+func @collapse_after_memref_cast_fold(%arg0 : memref<?x512x1x?xf32>) -> memref<?x?xf32> {
+  %dynamic = memref.cast %arg0: memref<?x512x1x?xf32> to memref<?x?x?x?xf32>
+  %collapsed = memref.collapse_shape %dynamic [[0], [1, 2, 3]] : memref<?x?x?x?xf32> into memref<?x?xf32>
+  return %collapsed : memref<?x?xf32>
+}
+
