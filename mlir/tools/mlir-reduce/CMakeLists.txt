@@ -14,6 +14,7 @@ set(LIBS
   MLIRDialect
   MLIRIR
   MLIRPass
+  MLIRMathTransforms
   MLIRReduceLib
   )
 

@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "PassDetail.h"
+#include "mlir/Dialect/Math/IR/Math.h"
+#include "mlir/Dialect/Math/Transforms/Passes.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Dialect/StandardOps/Transforms/Passes.h"
@@ -221,10 +223,11 @@ struct StdExpandOpsPass : public StdExpandOpsBase<StdExpandOpsPass> {
 
     RewritePatternSet patterns(&ctx);
     populateStdExpandOpsPatterns(patterns);
+    populateExpandTanhPattern(patterns);
 
     ConversionTarget target(getContext());
 
-    target.addLegalDialect<memref::MemRefDialect, StandardOpsDialect>();
+    target.addLegalDialect<memref::MemRefDialect, StandardOpsDialect, math::MathDialect>();
     target.addDynamicallyLegalOp<AtomicRMWOp>([](AtomicRMWOp op) {
       return op.kind() != AtomicRMWKind::maxf &&
              op.kind() != AtomicRMWKind::minf;
@@ -234,6 +237,7 @@ struct StdExpandOpsPass : public StdExpandOpsBase<StdExpandOpsPass> {
     });
     target.addIllegalOp<SignedCeilDivIOp>();
     target.addIllegalOp<SignedFloorDivIOp>();
+    target.addIllegalOp<math::TanhOp>();
     if (failed(
             applyPartialConversion(getFunction(), target, std::move(patterns))))
       signalPassFailure();
