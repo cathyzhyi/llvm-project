@@ -28,6 +28,53 @@ using namespace mlir;
 
 #define PASS_NAME "convert-cf-to-llvm"
 
+static FlatSymbolRefAttr getOrInsertPrintf(PatternRewriter &rewriter,
+                                           ModuleOp module) {
+  auto *context = module.getContext();
+  if (module.lookupSymbol<LLVM::LLVMFuncOp>("printf"))
+    return SymbolRefAttr::get(context, "printf");
+
+  // Create a function declaration for printf, the signature is:
+  //   * `i32 (i8*, ...)`
+  auto llvmI32Ty = IntegerType::get(context, 32);
+  auto llvmI8PtrTy = LLVM::LLVMPointerType::get(IntegerType::get(context, 8));
+  auto llvmFnType = LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy,
+                                                /*isVarArg=*/true);
+
+  // Insert the printf function into the body of the parent module.
+  PatternRewriter::InsertionGuard insertGuard(rewriter);
+  rewriter.setInsertionPointToStart(module.getBody());
+  rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), "printf", llvmFnType);
+  return SymbolRefAttr::get(context, "printf");
+}
+
+static Value getOrCreateGlobalString(Location loc, OpBuilder &builder,
+                                     StringRef name, StringRef value,
+                                     ModuleOp module) {
+  // Create the global at the entry of the module.
+  LLVM::GlobalOp global;
+  if (!(global = module.lookupSymbol<LLVM::GlobalOp>(name))) {
+    OpBuilder::InsertionGuard insertGuard(builder);
+    builder.setInsertionPointToStart(module.getBody());
+    auto type = LLVM::LLVMArrayType::get(
+        IntegerType::get(builder.getContext(), 8), value.size());
+    global = builder.create<LLVM::GlobalOp>(loc, type, /*isConstant=*/true,
+                                            LLVM::Linkage::Internal, name,
+                                            builder.getStringAttr(value),
+                                            /*alignment=*/0);
+  }
+
+  // Get the pointer to the first character in the global string.
+  Value globalPtr = builder.create<LLVM::AddressOfOp>(loc, global);
+  Value cst0 = builder.create<LLVM::ConstantOp>(
+      loc, IntegerType::get(builder.getContext(), 64),
+      builder.getIntegerAttr(builder.getIndexType(), 0));
+  return builder.create<LLVM::GEPOp>(
+      loc,
+      LLVM::LLVMPointerType::get(IntegerType::get(builder.getContext(), 8)),
+      globalPtr, ArrayRef<Value>({cst0, cst0}));
+}
+
 namespace {
 /// Lower `std.assert`. The default lowering calls the `abort` function if the
 /// assertion is violated and has no effect otherwise. The failure message is
@@ -57,8 +104,18 @@ struct AssertOpLowering : public ConvertOpToLLVMPattern<cf::AssertOp> {
     auto opPosition = rewriter.getInsertionPoint();
     Block *continuationBlock = rewriter.splitBlock(opBlock, opPosition);
 
+    // Generate print msg
+    auto printfRef = getOrInsertPrintf(rewriter, module);
+
     // Generate IR to call `abort`.
     Block *failureBlock = rewriter.createBlock(opBlock->getParent());
+    Value errMsg = getOrCreateGlobalString(
+        // loc, rewriter, "errmsg", StringRef("aborting!!!!!!!!!!!!!!!\n"),
+        // module);
+        loc, rewriter, op.getMsg(),
+        StringRef(Twine(StringRef(op.getMsg()) + "\n").str()), module);
+    rewriter.create<LLVM::CallOp>(loc, rewriter.getIntegerType(32), printfRef,
+                                  errMsg);
     rewriter.create<LLVM::CallOp>(loc, abortFunc, llvm::None);
     rewriter.create<LLVM::UnreachableOp>(loc);
 

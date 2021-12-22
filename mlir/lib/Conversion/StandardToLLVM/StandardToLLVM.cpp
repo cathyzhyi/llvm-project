@@ -20,6 +20,7 @@
 #include "mlir/Conversion/LLVMCommon/VectorPattern.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
@@ -387,6 +388,8 @@ struct BarePtrFuncOpConversion : public FuncOpConversionBase {
     return success();
   }
 };
+
+// Straightforward lowerings.
 
 struct ConstantOpLowering : public ConvertOpToLLVMPattern<ConstantOp> {
   using ConvertOpToLLVMPattern<ConstantOp>::ConvertOpToLLVMPattern;
