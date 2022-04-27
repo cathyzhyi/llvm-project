@@ -18,6 +18,9 @@
 #include <condition_variable>
 #include <future>
 
+#include <unistd.h>
+#include <ctime>
+#include <iostream>
 #define DEBUG_TYPE "orc"
 
 namespace llvm {
@@ -2214,10 +2217,14 @@ void ExecutionSession::dispatchOutstandingMUs() {
                        std::unique_ptr<MaterializationResponsibility>>>
         JMU;
 
+    time_t begin, end;
+    static int JMUcount = 0;
+    time(&begin);
     {
       std::lock_guard<std::recursive_mutex> Lock(OutstandingMUsMutex);
       if (!OutstandingMUs.empty()) {
         JMU.emplace(std::move(OutstandingMUs.back()));
+        JMUcount++;
         OutstandingMUs.pop_back();
       }
     }
@@ -2229,6 +2236,14 @@ void ExecutionSession::dispatchOutstandingMUs() {
     LLVM_DEBUG(dbgs() << "  Dispatching \"" << JMU->first->getName() << "\"\n");
     dispatchTask(std::make_unique<MaterializationTask>(std::move(JMU->first),
                                                        std::move(JMU->second)));
+    time(&end);
+    time_t elapsed = end - begin;
+    static time_t total1 = 0;
+    total1 += elapsed;
+    if (total1 > 20) {
+      std::cout << getpid() << "-Time measured in ExecutionSession::dispatchOutstandingMUs(): " << total1 << " seconds.\n" << std::flush;
+    }
+
   }
   LLVM_DEBUG(dbgs() << "Done dispatching MaterializationUnits.\n");
 }

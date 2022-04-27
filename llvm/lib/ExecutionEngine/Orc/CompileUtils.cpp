@@ -20,6 +20,9 @@
 #include "llvm/Target/TargetMachine.h"
 
 #include <algorithm>
+#include <ctime>
+#include <unistd.h>
+#include <iostream>
 
 namespace llvm {
 namespace orc {
@@ -49,7 +52,13 @@ Expected<SimpleCompiler::CompileResult> SimpleCompiler::operator()(Module &M) {
     if (TM.addPassesToEmitMC(PM, Ctx, ObjStream))
       return make_error<StringError>("Target does not support MC emission",
                                      inconvertibleErrorCode());
+    std::time_t t = std::time(0);   // get time now
+    std::tm* now = std::localtime(&t);
+    std::cout << getpid() << "-SimpleCompiler::operator() " << now->tm_hour << "-" << now->tm_min  << "-" << now->tm_sec << "\n" << std::flush;
     PM.run(M);
+    t = std::time(0);   // get time now
+    now = std::localtime(&t);
+    std::cout << getpid() << "-SimpleCompiler::operator() after compilation " << now->tm_hour << "-" << now->tm_min  << "-" << now->tm_sec << "\n" << std::flush;
   }
 
   auto ObjBuffer = std::make_unique<SmallVectorMemoryBuffer>(
