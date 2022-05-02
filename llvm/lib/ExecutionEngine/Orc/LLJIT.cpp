@@ -606,7 +606,6 @@ Error LLJITBuilderState::prepareForConstruction() {
       return JTMBOrErr.takeError();
   }
 
-  LLVM_DEBUG({
     dbgs() << "  JITTargetMachineBuilder is "
            << JITTargetMachineBuilderPrinter(*JTMB, "  ")
            << "  Pre-constructed ExecutionSession: " << (ES ? "Yes" : "No")
@@ -628,7 +627,6 @@ Error LLJITBuilderState::prepareForConstruction() {
       dbgs() << " (code will be compiled on the execution thread)\n";
     else
       dbgs() << "\n";
-  });
 
   // If neither ES nor EPC has been set then create an EPC instance.
   if (!ES && !EPC) {

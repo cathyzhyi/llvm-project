@@ -27,6 +27,7 @@
 #include "llvm/Support/TypeName.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string>
+#include <iostream>
 
 using namespace llvm;
 
@@ -34,12 +35,12 @@ using namespace llvm;
 
 namespace llvm {
 
-bool TimePassesIsEnabled = false;
+bool TimePassesIsEnabled = true;
 bool TimePassesPerRun = false;
 
-static cl::opt<bool, true> EnableTiming(
-    "time-passes", cl::location(TimePassesIsEnabled), cl::Hidden,
-    cl::desc("Time each pass, printing elapsed time for each on exit"));
+//static cl::opt<bool, true> EnableTiming(
+//    "time-passes", cl::location(TimePassesIsEnabled), cl::Hidden,
+//    cl::desc("Time each pass, printing elapsed time for each on exit"));
 
 static cl::opt<bool, true> EnableTimingPerRun(
     "time-passes-per-run", cl::location(TimePassesPerRun), cl::Hidden,

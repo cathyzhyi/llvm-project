@@ -28,6 +28,7 @@ mlirExecutionEngineCreate(MlirModule op, int optLevel, int numPaths,
   }();
   (void)initOnce;
 
+  unwrap(op)->getContext()->disableMultithreading();
   mlir::registerLLVMDialectTranslation(*unwrap(op)->getContext());
 
   auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
